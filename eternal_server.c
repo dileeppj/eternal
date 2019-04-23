@@ -6,7 +6,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <mqueue.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
+#define PORT 8080
 #define SERVER_QUEUE_NAME   "/eternal-server"
 #define QUEUE_PERMISSIONS 0660
 #define MAX_MESSAGES 10
@@ -25,7 +30,59 @@ void sig_handler(int signum) {
 
 int main (int argc, char **argv)
 {
+    // ********************************** SOCKET *******************************
+    int sockfd, newSocket;
+    struct sockaddr_in serverAddr, newAddr;
+    socklen_t addr_size = sizeof(serverAddr);
 
+    if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
+  		printf("[-] Error in connection.\n");
+  		exit(1);
+  	}
+  	printf("[+] Server Socket is created.\n");
+
+  	memset(&serverAddr, '\0', sizeof(serverAddr));  //memset() is used to fill a block of memory with a particular value.
+  	serverAddr.sin_family = AF_INET;
+  	serverAddr.sin_port = htons(PORT);
+  	serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+  	if((bind(sockfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr))) < 0){
+  		printf("[-] Error in binding.\n");
+  		exit(1);
+  	}
+  	printf("[+] Bind to port %d\n", PORT);
+
+  	if(listen(sockfd, 10) == 0){
+  		printf("[+] Listening....\n");
+  	}else{
+  		printf("[-] Error in binding.\n");
+  	}
+
+    while(1){   // THIS WILL BE OUR OUTER LOOP - WHEN A NEW SOCKET CONNETION IS ESTABLISHED HERE i.e,NEW CLIENT
+		newSocket = accept(sockfd, (struct sockaddr*)&newAddr, &addr_size);
+		if(newSocket < 0){
+			exit(1);
+		}
+		printf("Connection accepted from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+    // HERE WE HAVE TO MAKE NEW THREAD AND MESSAGE QUEUE FOR THE CLIENT
+    // FOR THAT WE REQUIRE CLIENT ID, IT IS PASSED FROM THE CLIENT FOR INIT. THE CONNECTION
+
+    ///// TO DO below
+		// while(1){
+		// 	recv(newSocket, buffer, 1024, 0);
+		// 	if(strcmp(buffer, ":exit") == 0){
+		// 		printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+		// 		break;
+		// 	}else{
+		// 		printf("Client: %s\n", buffer);
+		// 		send(newSocket, buffer, strlen(buffer), 0);
+		// 		bzero(buffer, sizeof(buffer));
+		// 	}
+		// }
+
+	}
+
+    // ********************************** MESSAGE QUEUE ************************
     struct mq_attr attr;
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
