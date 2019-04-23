@@ -17,14 +17,27 @@
 #define SERVER_QUEUE_NAME   "/eternal-server"
 #define QUEUE_PERMISSIONS 0660
 #define MAX_MESSAGES 10
-#define MAX_MSG_SIZE 256
+#define MAX_MSG_SIZE 512
 #define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
+#define DATE_LEN 100
 
 time_t now;
 
 mqd_t qd_server, qd_client;   // queue descriptors
 char client_queue_name [64];
 int clientSocket;
+
+// ********************************* DATA FORMAT *******************************
+
+typedef struct struct_data {
+  int pos_x;
+  int pos_y;
+  int pos_z;
+  int vel_x;
+  char date[DATE_LEN];
+} s_data;
+
+// *************************************************************************
 
 void sig_handler(int signum) {
     printf("\n[-] Exiting Application\n");
@@ -34,6 +47,14 @@ void sig_handler(int signum) {
     close(clientSocket);
     exit(0);
 }
+//Rough code to copy data from terminal to struct
+// void copy(i,ptr){
+//   switch (i) {
+//     case 1: msg.pos_x = ptr;
+//     case 2: msg.pos_y = ptr;
+//     case 3: msg.pos_z = ptr;
+//     case 4: msg.vel_x = ptr;
+//   }
 
 int main (int argc, char **argv)
 {
@@ -41,7 +62,8 @@ int main (int argc, char **argv)
       perror("[-] Error : Pass with arguments. eg. ./eternal_client CONNECT <client_id> ");
       exit(1);
     }
-
+    s_data msg;
+    time_t clock;
     // Check if there is an entry for a client with same client id with the name of client message queue (as it is same as client_id
     // If any of the client has same client id, break the program and ask for new client id
     // If there is no client with similar client id, then make a new thread and a message queue for that thread to communicate with server
@@ -110,6 +132,8 @@ int main (int argc, char **argv)
 
     char in_buffer [MSG_BUFFER_SIZE];
     char temp_buf[MAX_MSG_SIZE];
+    char delim[] = ",";
+    // char temp[MSG_BUFFER_SIZE] = {0};
 
     // printf ("Data to be sent [Position & velocity] : ");
     printf ("[=] Client [pos,vel] : ");
@@ -125,12 +149,25 @@ int main (int argc, char **argv)
             continue;
         }
 
-        // time stamp TODO
-        // char buf[16];
-        // snprintf(buf, 16, "%lu", time(NULL));
-        // strcat(temp_buf,buf);
+        // Timestamp
+        time(&clock);
+        snprintf(msg.date, sizeof(msg.date), "%.24s", ctime(&clock));
+        // Getting value from terminal - temp_buf & extract it down.
+        //TO EXTRACT THE DATA {POS & VEL}
+        // char *ptr = strtok(temp_buf, delim);
+        // int i=0;
+        // // memset(&temp, 0, sizeof(temp));
+      	// while (ptr != NULL){
+      	// 	// strcat(temp,ptr);
+        //   // strcat(temp,"-");
+      	// 	ptr = strtok(NULL, delim);
+        //   copy(i,ptr);
+        //   i++;
+        // }
+
 
         //Send data - [position,velocity] - data in temp_buf
+        // if (mq_send (qd_server, (const char*)&msg, strlen (msg) + 1, 0) == -1) {
         if (mq_send (qd_server, temp_buf, strlen (temp_buf) + 1, 0) == -1) {
             perror ("[-] Client : Not able to send message to server");
             continue;

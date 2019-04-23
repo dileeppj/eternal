@@ -15,11 +15,25 @@
 #define SERVER_QUEUE_NAME   "/eternal-server"
 #define QUEUE_PERMISSIONS 0660
 #define MAX_MESSAGES 10
-#define MAX_MSG_SIZE 256
+#define MAX_MSG_SIZE 512
 #define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
+#define DATE_LEN 100
+
 
 mqd_t qd_server, qd_client;   // queue descriptors
 int sockfd, newSocket;
+
+// ********************************* DATA FORMAT *******************************
+
+typedef struct struct_data {
+  int pos_x;
+  int pos_y;
+  int pos_z;
+  int vel_x;
+  char date[DATE_LEN];
+} s_data;
+
+// *************************************************************************
 
 void sig_handler(int signum) {
     printf("[-] Received SIGINT. Exiting Application\n");
@@ -33,6 +47,7 @@ void sig_handler(int signum) {
 
 int main (int argc, char **argv)
 {
+    s_data msg;
     // ********************************** SOCKET *******************************
     struct sockaddr_in serverAddr, newAddr;
     socklen_t addr_size = sizeof(serverAddr);
