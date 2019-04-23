@@ -151,27 +151,3 @@ int main (int argc, char **argv)
 
     exit (0);
 }
-
-
-
-
-
-// Scratch book
-// found below (92) signal(SIGINT, sig_handler);  // CTRL+C
-// while(1){
-//   printf("Client: ");
-//   scanf("%s", &buffer[0]);
-//   send(clientSocket, buffer, strlen(buffer), 0);
-//
-//   if(strcmp(buffer, "STOP") == 0){
-//     close(clientSocket);
-//     printf("[-]Disconnected from server.\n");
-//     exit(1);
-//   }
-//
-//   if(recv(clientSocket, buffer, 1024, 0) < 0){
-//     printf("[-]Error in receiving data.\n");
-//   }else{
-//     printf("Server: %s\n", buffer);
-//   }
-// }

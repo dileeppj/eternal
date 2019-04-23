@@ -159,22 +159,5 @@ int main (int argc, char **argv)
 
         printf ("[-] Server : response sent to client.\n");
     }
-
-
-
-
-    ///// TO DO below
-		// while(1){
-		// 	recv(newSocket, buffer, 1024, 0);
-		// 	if(strcmp(buffer, ":exit") == 0){
-		// 		printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
-		// 		break;
-		// 	}else{
-		// 		printf("Client: %s\n", buffer);
-		// 		send(newSocket, buffer, strlen(buffer), 0);
-		// 		bzero(buffer, sizeof(buffer));
-		// 	}
-		// }
-
 	}
 }
