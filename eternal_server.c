@@ -19,19 +19,21 @@
 #define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
 
 mqd_t qd_server, qd_client;   // queue descriptors
+int sockfd, newSocket;
 
 void sig_handler(int signum) {
     printf("[-] Received SIGINT. Exiting Application\n");
     mq_close(qd_server);
     mq_close(qd_client);
     mq_unlink(SERVER_QUEUE_NAME);
+    close(newSocket);
+    close(sockfd);
     exit(0);
 }
 
 int main (int argc, char **argv)
 {
     // ********************************** SOCKET *******************************
-    int sockfd, newSocket;
     struct sockaddr_in serverAddr, newAddr;
     socklen_t addr_size = sizeof(serverAddr);
 
@@ -57,32 +59,8 @@ int main (int argc, char **argv)
   	}else{
   		printf("[-] Error in binding.\n");
   	}
-
-    while(1){   // THIS WILL BE OUR OUTER LOOP - WHEN A NEW SOCKET CONNETION IS ESTABLISHED HERE i.e,NEW CLIENT
-		newSocket = accept(sockfd, (struct sockaddr*)&newAddr, &addr_size);
-		if(newSocket < 0){
-			exit(1);
-		}
-		printf("Connection accepted from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
-    // HERE WE HAVE TO MAKE NEW THREAD AND MESSAGE QUEUE FOR THE CLIENT
-    // FOR THAT WE REQUIRE CLIENT ID, IT IS PASSED FROM THE CLIENT FOR INIT. THE CONNECTION
-
-    ///// TO DO below
-		// while(1){
-		// 	recv(newSocket, buffer, 1024, 0);
-		// 	if(strcmp(buffer, ":exit") == 0){
-		// 		printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
-		// 		break;
-		// 	}else{
-		// 		printf("Client: %s\n", buffer);
-		// 		send(newSocket, buffer, strlen(buffer), 0);
-		// 		bzero(buffer, sizeof(buffer));
-		// 	}
-		// }
-
-	}
-
     // ********************************** MESSAGE QUEUE ************************
+
     struct mq_attr attr;
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
@@ -103,6 +81,40 @@ int main (int argc, char **argv)
     // SIGNAL INTERRUPTION
     signal(SIGINT, sig_handler);  // CTRL+C
 
+    // ********************************** SOCKET *******************************
+    while(1){   // THIS WILL BE OUR OUTER LOOP - WHEN A NEW SOCKET CONNETION IS ESTABLISHED HERE i.e,NEW CLIENT
+		newSocket = accept(sockfd, (struct sockaddr*)&newAddr, &addr_size);
+		if(newSocket < 0){
+			exit(1);
+		}
+		printf("[.] Connection accepted from Socket Addr %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+    // HERE WE HAVE TO MAKE NEW THREAD AND MESSAGE QUEUE FOR THE CLIENT
+    // FOR THAT WE REQUIRE CLIENT ID, IT IS PASSED FROM THE CLIENT FOR INIT. THE CONNECTION
+    char buffer[1024];
+    // send(clientSocket, buffer, strlen(buffer), 0);
+    recv(newSocket, buffer, 1024, 0);
+    printf("[.] Client ID (str) : %s\n", buffer);
+    // The message is received in the var. buffer
+    int client_id = atoi(buffer);
+    printf("[.] Client ID (int) : %d\n", client_id);
+    // Therefore the name of new message queue is /eternal-client-<client_id>
+    //Send the new client ID to client
+    memset(&buffer, '\0', sizeof(buffer));
+    sprintf(buffer, "eternal-client-%d",client_id);
+    send(newSocket, buffer, strlen(buffer), 0);
+
+    // So we have sent the name of message queue to the client
+    // MAKE NEW THREAD
+    // MAKE NEW MESSAGE QUEUE for the client
+    char client_queue_name [64];
+    sprintf(client_queue_name, "/%s", buffer);
+    if ((qd_client = mq_open (client_queue_name, O_WRONLY | O_CREAT, QUEUE_PERMISSIONS, &attr)) == -1) {
+      perror ("[-] Client : mq_open (client)");
+      exit (1);
+    }
+    // STARTING THE CLIENT NODE
+    // Ok.. so we are sending the Connect request of the client to the Servers message queue
+    // sprintf(in_buffer, "/", buffer);
     while (1) {
         // Receiving the client message queue name (in in_buffer) to communicate
         if (mq_receive (qd_server, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
@@ -129,11 +141,11 @@ int main (int argc, char **argv)
         //TO EXTRACT THE DATA {POS & VEL}
         char *ptr = strtok(in_buffer, delim);
         memset(&temp, 0, sizeof(temp));
-      	while (ptr != NULL)
-      	{
-      		strcat(temp,ptr);
+        while (ptr != NULL)
+        {
+          strcat(temp,ptr);
           strcat(temp,"-");
-      		ptr = strtok(NULL, delim);
+          ptr = strtok(NULL, delim);
         }
         //Modification on the data got from client
         sprintf (out_buffer, "Modified : %s", temp);
@@ -147,4 +159,22 @@ int main (int argc, char **argv)
 
         printf ("[-] Server : response sent to client.\n");
     }
+
+
+
+
+    ///// TO DO below
+		// while(1){
+		// 	recv(newSocket, buffer, 1024, 0);
+		// 	if(strcmp(buffer, ":exit") == 0){
+		// 		printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+		// 		break;
+		// 	}else{
+		// 		printf("Client: %s\n", buffer);
+		// 		send(newSocket, buffer, strlen(buffer), 0);
+		// 		bzero(buffer, sizeof(buffer));
+		// 	}
+		// }
+
+	}
 }

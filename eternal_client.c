@@ -24,21 +24,19 @@ time_t now;
 
 mqd_t qd_server, qd_client;   // queue descriptors
 char client_queue_name [64];
+int clientSocket;
 
 void sig_handler(int signum) {
     printf("\n[-] Exiting Application\n");
     mq_close(qd_server);
     mq_close(qd_client);
     mq_unlink(client_queue_name);
+    close(clientSocket);
     exit(0);
 }
 
 int main (int argc, char **argv)
 {
-    // ********************************** SOCKET *******************************
-    int clientSocket;
-    struct sockaddr_in serverAddr;
-
     if(strcmp(argv[1],"CONNECT") || argc != 3 ){
       perror("[-] Error : Pass with arguments. eg. ./eternal_client CONNECT <client_id> ");
       exit(1);
@@ -47,6 +45,10 @@ int main (int argc, char **argv)
     // Check if there is an entry for a client with same client id with the name of client message queue (as it is same as client_id
     // If any of the client has same client id, break the program and ask for new client id
     // If there is no client with similar client id, then make a new thread and a message queue for that thread to communicate with server
+
+    // ********************************** SOCKET *******************************
+
+    struct sockaddr_in serverAddr;
 
     if((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) == 0){
       printf("[-] Error in connection.\n");
@@ -69,46 +71,20 @@ int main (int argc, char **argv)
     // Now as I'm connected to the server, i need to send the client_id (argv[2]) to the server
     // to create a message queue and a thred (N_Imp) and the server sends me the name of the
     // message queue to connect with.
-
-
-    // while(1){
-    //   printf("Client: ");
-    //   scanf("%s", &buffer[0]);
-    //   send(clientSocket, buffer, strlen(buffer), 0);
-    //
-    //   if(strcmp(buffer, "STOP") == 0){
-    //     close(clientSocket);
-    //     printf("[-]Disconnected from server.\n");
-    //     exit(1);
-    //   }
-    //
-    //   if(recv(clientSocket, buffer, 1024, 0) < 0){
-    //     printf("[-]Error in receiving data.\n");
-    //   }else{
-    //     printf("Server: %s\n", buffer);
-    //   }
-    // }
-
-
-
-
-
-
-
-
-
-
-
-
+    char buffer[1024];
+    sprintf(buffer, "%s",argv[2]);
+    printf("[.] Client ID : %s\n", buffer);
+    send(clientSocket, buffer, strlen(buffer), 0);
+    // The message argv[1] i.e the client_id, is sent to the server
+    // The server will send the name of message queue, receive it
+    memset(&buffer, '\0', sizeof(buffer));
+    recv(clientSocket, buffer, 1024, 0);
+    // The var. buffer has the name of message server to be created by server for the client
+    // sprintf (client_queue_name, "/eternal-client-%s", argv[2]);
+    sprintf(client_queue_name, "/%s", buffer);
+    printf("[.] Client Queue Name : %s\n", client_queue_name);
 
     // ********************************** MESSAGE QUEUE ************************
-
-    if(strcmp(argv[1],"CONNECT") || argc != 3 ){
-      perror("[-] Error : Pass with arguments. eg. ./eternal_client CONNECT <client_id> ");
-      exit(1);
-    }
-    sprintf (client_queue_name, "/eternal-client-%s", argv[2]);
-
     struct mq_attr attr;
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
@@ -118,6 +94,7 @@ int main (int argc, char **argv)
     // SIGNAL INTERRUPTION
     signal(SIGINT, sig_handler);  // CTRL+C
 
+    // ********************************** MESSAGE QUEUE ************************
 
     // STARTING THE CLIENT NODE
     if ((qd_client = mq_open (client_queue_name, O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr)) == -1) {
@@ -133,8 +110,6 @@ int main (int argc, char **argv)
 
     char in_buffer [MSG_BUFFER_SIZE];
     char temp_buf[MAX_MSG_SIZE];
-
-
 
     // printf ("Data to be sent [Position & velocity] : ");
     printf ("[=] Client [pos,vel] : ");
@@ -176,3 +151,27 @@ int main (int argc, char **argv)
 
     exit (0);
 }
+
+
+
+
+
+// Scratch book
+// found below (92) signal(SIGINT, sig_handler);  // CTRL+C
+// while(1){
+//   printf("Client: ");
+//   scanf("%s", &buffer[0]);
+//   send(clientSocket, buffer, strlen(buffer), 0);
+//
+//   if(strcmp(buffer, "STOP") == 0){
+//     close(clientSocket);
+//     printf("[-]Disconnected from server.\n");
+//     exit(1);
+//   }
+//
+//   if(recv(clientSocket, buffer, 1024, 0) < 0){
+//     printf("[-]Error in receiving data.\n");
+//   }else{
+//     printf("Server: %s\n", buffer);
+//   }
+// }
