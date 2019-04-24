@@ -165,7 +165,6 @@ int main (int argc, char **argv)
         //   i++;
         // }
 
-
         //Send data - [position,velocity] - data in temp_buf
         // if (mq_send (qd_server, (const char*)&msg, strlen (msg) + 1, 0) == -1) {
         if (mq_send (qd_server, temp_buf, strlen (temp_buf) + 1, 0) == -1) {
